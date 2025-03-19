@@ -56,4 +56,4 @@ jobs:
         run: dotnet pack src/cicdGitactionTest/cicdGitactionTest.csproj --configuration Release --output ./packages
 
       - name: 🚀 Publish to NuGet
-        run: dotnet nuget push $(find ../src/cicdGitactionTest/bin/Release/ -name "*.nupkg") -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
+        run: dotnet nuget push $(find ../src/cicdGitactionTest/bin/Debug/ -name "*.nupkg") -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
