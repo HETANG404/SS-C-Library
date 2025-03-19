@@ -10,108 +10,116 @@ on:
 
 jobs:
   versioning:
-    name: Versioning & Tagging
+    name: 版本管理和标签
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Allow creating Git tags
+      contents: write  # 允许创建 Git 标签
     outputs:
       new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      new_version: ${{ steps.format_version.outputs.version }}
     steps:
-      - name: 🚀 Checkout Repository
+      - name: 🚀 检出代码
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # 获取完整的 Git 历史以便正确分析 commit
        
-      - name: 🔢 Generate Version and Create Tag
+      - name: 🔢 根据 commit 规范生成版本
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          default_bump: patch  # Automatically increment patch version to prevent empty tags
-          tag_prefix: "v"
+          default_bump: patch  # 默认递增补丁版本
+          tag_prefix: "v"  # 使用 v 作为标签前缀，例如 v1.0.0
           release_branches: main
+          # 以下是可选的自定义配置
+          major_pattern: "(BREAKING CHANGE|major)"  # 主版本变更的模式
+          minor_pattern: "feat:"  # 次版本变更的模式
+          patch_pattern: "(fix|docs|style|refactor|perf|test|ci|build|chore):"  # 补丁版本变更的模式
        
-      - name: 🧐 Debug GitHub Tag Generation
+      - name: 🧐 调试版本生成
         run: |
-          echo "Previous tag: ${{ steps.tag_version.outputs.previous_tag }}"
-          echo "New tag: ${{ steps.tag_version.outputs.new_tag }}"
-       
-      - name: ✅ Set New Version
+          echo "上一个标签: ${{ steps.tag_version.outputs.previous_tag }}"
+          echo "新标签: ${{ steps.tag_version.outputs.new_tag }}"
+          echo "部分变更日志: ${{ steps.tag_version.outputs.changelog }}"
+      
+      - name: 📝 格式化版本号用于 NuGet
+        id: format_version
         run: |
           TAG="${{ steps.tag_version.outputs.new_tag }}"
           if [[ -z "$TAG" ]]; then
-            echo "❌ ERROR: new_tag is empty! Possible cause: GitHub Tag Action failed to generate a new tag."
+            echo "❌ 错误: new_tag 为空! 可能是版本生成工具失败。"
             exit 1
           fi
-          echo "✅ Successfully set VERSION=$TAG"
+          # 去掉版本号前面的 'v' 前缀
+          VERSION=${TAG#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "✅ 成功设置 VERSION=$VERSION"
  
   build-and-test:
-    name: Build & Test
+    name: 构建和测试
     needs: versioning
     runs-on: ubuntu-latest
     
     steps:
-      - name: 🚀 Checkout Repository
+      - name: 🚀 检出代码
         uses: actions/checkout@v4
        
-      - name: 🏗 Setup .NET SDK
+      - name: 🏗 设置 .NET SDK
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '8.0.x'
        
-      - name: 📦 Restore Dependencies
+      - name: 📦 还原依赖
         run: dotnet restore
        
-      - name: 🏗 Build Project
+      - name: 🏗 构建项目
         run: dotnet build --configuration Release --no-restore
        
-      - name: ✅ Run Tests
-        run: dotnet test src/cicdGitactionTest.Tests/cicdGitactionTest.Tests.csproj --configuration Release --no-build --logger trx
+      - name: ✅ 运行测试
+        run: dotnet test --configuration Release --no-build --logger trx
  
   publish-nuget:
-    name: Publish to NuGet
+    name: 发布到 NuGet
     needs: [versioning, build-and-test]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: 🚀 Checkout Repository
+      - name: 🚀 检出代码
         uses: actions/checkout@v4
        
-      - name: 🏗 Setup .NET SDK
+      - name: 🏗 设置 .NET SDK
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '8.0.x'
        
-      - name: 📦 Restore Dependencies
+      - name: 📦 还原依赖
         run: dotnet restore
        
-      - name: 🏗 Build Project
+      - name: 🏗 构建项目
         run: dotnet build --configuration Release --no-restore
        
-      - name: 🧐 Check VERSION
+      - name: 🧐 检查版本号
         run: |
-          VERSION="${{ needs.versioning.outputs.new_tag }}"
+          VERSION="${{ needs.versioning.outputs.new_version }}"
           if [[ -z "$VERSION" ]]; then
-            echo "❌ ERROR: VERSION is empty!"
+            echo "❌ 错误: VERSION 为空!"
             exit 1
           fi
-          # 移除版本号前面的 'v' 前缀
-          VERSION=${VERSION#v}
-          echo "✅ Using Version: $VERSION"
+          echo "✅ 使用版本号: $VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
        
-      - name: 📦 Package NuGet
-        run: dotnet pack src/cicdGitactionTest/cicdGitactionTest.csproj --configuration Release --output ./packages /p:Version=${{ env.VERSION }}
+      - name: 📦 打包 NuGet
+        run: dotnet pack --configuration Release --output ./packages /p:Version=${{ env.VERSION }}
        
-      - name: 🧐 Verify NuGet Package
-        run: ls -R packages || echo "❌ No NuGet package found!"
+      - name: 🧐 验证 NuGet 包
+        run: ls -R packages || echo "❌ 未找到 NuGet 包!"
        
-      - name: 🚀 Publish to NuGet
+      - name: 🚀 发布到 NuGet
         run: |
           PACKAGE=$(find packages -name "*.nupkg" | head -n 1)
           if [ -z "$PACKAGE" ]; then
-            echo "❌ No NuGet package found! Build might have failed."
+            echo "❌ 未找到 NuGet 包! 构建可能失败。"
             exit 1
           fi
-          echo "✅ Found NuGet package: $PACKAGE"
+          echo "✅ 找到 NuGet 包: $PACKAGE"
           dotnet nuget push "$PACKAGE" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
