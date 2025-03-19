@@ -139,6 +139,9 @@ jobs:
       - name: 📦 还原依赖
         run: dotnet restore
        
+      - name: 🏗 构建项目
+        run: dotnet build --configuration Release --no-restore
+       
       - name: 🧐 检查版本号
         run: |
           VERSION="${{ needs.versioning.outputs.new_version }}"
@@ -149,7 +152,7 @@ jobs:
           echo "✅ 使用版本号: $VERSION"
        
       - name: 📦 打包 NuGet
-        run: dotnet pack --configuration Release --output ./packages
+        run: dotnet pack --configuration Release --output ./packages --no-build
        
       - name: 🧐 验证 NuGet 包
         run: ls -R packages || echo "❌ 未找到 NuGet 包!"
