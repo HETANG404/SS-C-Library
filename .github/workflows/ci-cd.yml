@@ -13,9 +13,9 @@ jobs:
     name: 版本控制与打 Tag
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write  # 允许创建 Git tag
     outputs:
-      new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}  # 传递版本号
     steps:
       - name: 🚀 检出代码
         uses: actions/checkout@v4
@@ -27,20 +27,24 @@ jobs:
         uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          default_bump: false
+          default_bump: false  # 关闭默认 patch 递增
           tag_prefix: "v"
           release_branches: main
 
-      - name: 🧐 调试新版本号
-        run: echo "Generated new tag:${{ steps.tag_version.outputs.new_tag }}"
+      - name: 🧐 调试 GitHub Tag 生成情况
+        run: |
+          echo "Previous tag: ${{ steps.tag_version.outputs.previous_tag }}"
+          echo "New tag: ${{ steps.tag_version.outputs.new_tag }}"
 
       - name: ✅ 输出新版本号
         run: |
-          if [[ -z "${{ steps.tag_version.outputs.new_tag }}" ]]; then
-            echo "❌ ERROR: new_tag is empty!"
+          TAG="${{ steps.tag_version.outputs.new_tag }}"
+          if [[ -z "$TAG" ]]; then
+            echo "❌ ERROR: new_tag is empty! Possible cause: GitHub Tag Action failed to generate a new tag."
             exit 1
           fi
-          echo "VERSION=${{ steps.tag_version.outputs.new_tag }}" >> $GITHUB_ENV
+          echo "VERSION=$TAG" >> $GITHUB_ENV
+          echo "✅ Successfully set VERSION=$TAG"
 
   build-and-test:
     name: 构建 & 测试
