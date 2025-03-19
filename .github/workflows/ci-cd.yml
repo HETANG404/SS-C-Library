@@ -9,8 +9,31 @@ on:
       - main   # PR 时触发 CI 测试
 
 jobs:
+  
+  versioning:
+    name: Versioning & Tagging
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚀 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整的 Git 历史
+
+      - name: 🔢 Determine Version
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch  # 默认提升 patch 版本号（可改为 major/minor/patch）
+
+      - name: 🧐 Debug Version
+        run: echo "New version is ${{ steps.tag_version.outputs.new_tag }}"
+
+  
+  
   build-and-test:
     name: Build & Test
+    needs: versioning
     runs-on: ubuntu-latest
 
     steps:
@@ -53,7 +76,7 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
       - name: 📦 Pack NuGet Package
-        run: dotnet pack src/cicdGitactionTest/cicdGitactionTest.csproj --configuration Release --output ./packages
+        run: dotnet pack src/cicdGitactionTest/cicdGitactionTest.csproj --configuration Release --output ./packages /p:Version=${{ needs.versioning.outputs.new_tag }}
 
       - name: 🧐 Debug:Check NuGet Package Location
         run: ls -R packages || echo "No NuGet package found!"
