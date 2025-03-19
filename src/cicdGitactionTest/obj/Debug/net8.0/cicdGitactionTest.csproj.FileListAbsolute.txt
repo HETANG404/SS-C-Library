@@ -1,0 +1,11 @@
+E:\xiaoLongBao\uno\cicdGitactionTest\src\cicdGitactionTest\bin\Debug\net8.0\cicdGitactionTest.deps.json
+E:\xiaoLongBao\uno\cicdGitactionTest\src\cicdGitactionTest\bin\Debug\net8.0\cicdGitactionTest.dll
+E:\xiaoLongBao\uno\cicdGitactionTest\src\cicdGitactionTest\bin\Debug\net8.0\cicdGitactionTest.pdb
+E:\xiaoLongBao\uno\cicdGitactionTest\src\cicdGitactionTest\obj\Debug\net8.0\cicdGitactionTest.GeneratedMSBuildEditorConfig.editorconfig
+E:\xiaoLongBao\uno\cicdGitactionTest\src\cicdGitactionTest\obj\Debug\net8.0\cicdGitactionTest.AssemblyInfoInputs.cache
+E:\xiaoLongBao\uno\cicdGitactionTest\src\cicdGitactionTest\obj\Debug\net8.0\cicdGitactionTest.AssemblyInfo.cs
+E:\xiaoLongBao\uno\cicdGitactionTest\src\cicdGitactionTest\obj\Debug\net8.0\cicdGitactionTest.csproj.CoreCompileInputs.cache
+E:\xiaoLongBao\uno\cicdGitactionTest\src\cicdGitactionTest\obj\Debug\net8.0\cicdGitactionTest.dll
+E:\xiaoLongBao\uno\cicdGitactionTest\src\cicdGitactionTest\obj\Debug\net8.0\refint\cicdGitactionTest.dll
+E:\xiaoLongBao\uno\cicdGitactionTest\src\cicdGitactionTest\obj\Debug\net8.0\cicdGitactionTest.pdb
+E:\xiaoLongBao\uno\cicdGitactionTest\src\cicdGitactionTest\obj\Debug\net8.0\ref\cicdGitactionTest.dll

@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>cicdGitactionTest</id>
+    <version>1.0.0</version>
+    <authors>HETANG404</authors>
+    <license type="expression">MIT</license>
+    <licenseUrl>https://licenses.nuget.org/MIT</licenseUrl>
+    <description>TEST CICDGitaction with XUnit</description>
+    <tags>dotnet, library, nuget, cicd, gitaction</tags>
+    <repository type="git" url="https://github.com/yourusername/yourlibrary" />
+    <dependencies>
+      <group targetFramework="net8.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="E:\xiaoLongBao\uno\cicdGitactionTest\src\cicdGitactionTest\bin\Debug\net8.0\cicdGitactionTest.dll" target="lib\net8.0\cicdGitactionTest.dll" />
+  </files>
+</package>

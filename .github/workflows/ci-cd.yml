@@ -1,0 +1,59 @@
+name: Build, Test & Publish NuGet
+
+on:
+  push:
+    branches:
+      - main   # 仅在 push 到 main 分支时触发 NuGet 发布
+  pull_request:
+    branches:
+      - main   # PR 时触发 CI 测试
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🚀 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'   # 使用 .NET 8
+
+      - name: 📦 Restore Dependencies
+        run: dotnet restore
+
+      - name: 🏗 Build Solution
+        run: dotnet build --configuration Release --no-restore
+
+      - name: ✅ Run Tests
+        run: dotnet test src/cicdGitactionTest.Tests/cicdGitactionTest.Tests.csproj --configuration Release --no-build --logger trx
+
+
+  publish-nuget:
+    name: Publish to NuGet
+    needs: build-and-test  # 依赖上一个 job，确保测试通过
+    if: github.ref == 'refs/heads/main'  # 仅在 main 分支触发
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚀 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: 📦 Restore Dependencies
+        run: dotnet restore
+
+      - name: 🏗 Build Solution
+        run: dotnet build --configuration Release --no-restore
+
+      - name: 📦 Pack NuGet Package
+        run: dotnet pack src/cicdGitactionTest/cicdGitactionTest.csproj --configuration Release --output ./packages
+
+      - name: 🚀 Publish to NuGet
+        run: dotnet nuget push (Get-ChildItem -Path bin/Release/*.nupkg).FullName -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
