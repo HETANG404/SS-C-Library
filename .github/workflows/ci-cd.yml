@@ -95,6 +95,8 @@ jobs:
             echo "❌ ERROR: VERSION is empty!"
             exit 1
           fi
+          # 移除版本号前面的 'v' 前缀
+          VERSION=${VERSION#v}
           echo "✅ Using Version: $VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
        
