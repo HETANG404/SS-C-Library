@@ -13,6 +13,8 @@ jobs:
   versioning:
     name: Versioning & Tagging
     runs-on: ubuntu-latest
+    permissions:
+    contents: write  # 允许创建/推送 Git 标签
     steps:
       - name: 🚀 Checkout Repository
         uses: actions/checkout@v4
