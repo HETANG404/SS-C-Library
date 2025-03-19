@@ -55,14 +55,51 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "✅ 成功设置 VERSION=$VERSION"
  
+  update-csproj:
+    name: 更新项目文件版本
+    needs: versioning
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚀 检出代码
+        uses: actions/checkout@v4
+        
+      - name: 📝 更新 csproj 文件版本号
+        run: |
+          VERSION="${{ needs.versioning.outputs.new_version }}"
+          if [[ -z "$VERSION" ]]; then
+            echo "❌ 错误: VERSION 为空!"
+            exit 1
+          fi
+          echo "✅ 使用版本号: $VERSION 更新 csproj 文件"
+          
+          # 使用 sed 更新所有 csproj 文件中的版本号
+          # 下面的命令会查找并替换 <Version>任何内容</Version> 为新的版本号
+          find . -name "*.csproj" -type f -exec sed -i "s/<Version>[^<]*<\/Version>/<Version>$VERSION<\/Version>/g" {} \;
+          
+      - name: 🔍 检查更新后的 csproj 文件
+        run: |
+          echo "更新后的 csproj 文件内容:"
+          cat $(find . -name "*.csproj" -type f) | grep -A 1 -B 1 "<Version>"
+          
+      - name: 💾 提交版本号更新
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "chore: 更新版本号到 ${{ needs.versioning.outputs.new_version }} [skip ci]" || echo "没有文件更改"
+          git push
+
   build-and-test:
     name: 构建和测试
-    needs: versioning
+    needs: [versioning, update-csproj]
     runs-on: ubuntu-latest
     
     steps:
       - name: 🚀 检出代码
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}  # 确保获取最新的提交，包括版本更新
        
       - name: 🏗 设置 .NET SDK
         uses: actions/setup-dotnet@v3
@@ -80,12 +117,14 @@ jobs:
  
   publish-nuget:
     name: 发布到 NuGet
-    needs: [versioning, build-and-test]
+    needs: [versioning, update-csproj, build-and-test]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: 🚀 检出代码
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}  # 确保获取最新的提交，包括版本更新
        
       - name: 🏗 设置 .NET SDK
         uses: actions/setup-dotnet@v3
@@ -95,9 +134,6 @@ jobs:
       - name: 📦 还原依赖
         run: dotnet restore
        
-      - name: 🏗 构建项目
-        run: dotnet build --configuration Release --no-restore
-       
       - name: 🧐 检查版本号
         run: |
           VERSION="${{ needs.versioning.outputs.new_version }}"
@@ -106,10 +142,9 @@ jobs:
             exit 1
           fi
           echo "✅ 使用版本号: $VERSION"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
        
       - name: 📦 打包 NuGet
-        run: dotnet pack --configuration Release --output ./packages /p:Version=${{ env.VERSION }}
+        run: dotnet pack --configuration Release --output ./packages
        
       - name: 🧐 验证 NuGet 包
         run: ls -R packages || echo "❌ 未找到 NuGet 包!"
