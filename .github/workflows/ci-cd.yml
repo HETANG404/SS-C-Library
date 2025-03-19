@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+       
       - name: 🔢 Generate Version and Create Tag
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.2
@@ -30,12 +30,12 @@ jobs:
           default_bump: patch  # Automatically increment patch version to prevent empty tags
           tag_prefix: "v"
           release_branches: main
-
+       
       - name: 🧐 Debug GitHub Tag Generation
         run: |
           echo "Previous tag: ${{ steps.tag_version.outputs.previous_tag }}"
           echo "New tag: ${{ steps.tag_version.outputs.new_tag }}"
-
+       
       - name: ✅ Set New Version
         run: |
           TAG="${{ steps.tag_version.outputs.new_tag }}"
@@ -43,66 +43,67 @@ jobs:
             echo "❌ ERROR: new_tag is empty! Possible cause: GitHub Tag Action failed to generate a new tag."
             exit 1
           fi
-          echo "VERSION=$TAG" >> $GITHUB_ENV
           echo "✅ Successfully set VERSION=$TAG"
-
+ 
   build-and-test:
     name: Build & Test
     needs: versioning
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: 🚀 Checkout Repository
         uses: actions/checkout@v4
-
+       
       - name: 🏗 Setup .NET SDK
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '8.0.x'
-
+       
       - name: 📦 Restore Dependencies
         run: dotnet restore
-
+       
       - name: 🏗 Build Project
         run: dotnet build --configuration Release --no-restore
-
+       
       - name: ✅ Run Tests
         run: dotnet test src/cicdGitactionTest.Tests/cicdGitactionTest.Tests.csproj --configuration Release --no-build --logger trx
-
+ 
   publish-nuget:
     name: Publish to NuGet
-    needs: build-and-test
+    needs: [versioning, build-and-test]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: 🚀 Checkout Repository
         uses: actions/checkout@v4
-
+       
       - name: 🏗 Setup .NET SDK
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '8.0.x'
-
+       
       - name: 📦 Restore Dependencies
         run: dotnet restore
-
+       
       - name: 🏗 Build Project
         run: dotnet build --configuration Release --no-restore
-
+       
       - name: 🧐 Check VERSION
         run: |
-          if [[ -z "${{ env.VERSION }}" ]]; then
+          VERSION="${{ needs.versioning.outputs.new_tag }}"
+          if [[ -z "$VERSION" ]]; then
             echo "❌ ERROR: VERSION is empty!"
             exit 1
           fi
-          echo "✅ Using Version: ${{ env.VERSION }}"
-
+          echo "✅ Using Version: $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+       
       - name: 📦 Package NuGet
         run: dotnet pack src/cicdGitactionTest/cicdGitactionTest.csproj --configuration Release --output ./packages /p:Version=${{ env.VERSION }}
-
+       
       - name: 🧐 Verify NuGet Package
         run: ls -R packages || echo "❌ No NuGet package found!"
-
+       
       - name: 🚀 Publish to NuGet
         run: |
           PACKAGE=$(find packages -name "*.nupkg" | head -n 1)
