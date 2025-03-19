@@ -15,7 +15,7 @@ jobs:
     permissions:
       contents: write
     outputs:
-      new_tag: ${{ steps.tag_version.outputs.new_tag }}  # 让新版本号可以传递给后续任务
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
     steps:
       - name: 🚀 检出代码
         uses: actions/checkout@v4
@@ -31,8 +31,16 @@ jobs:
           tag_prefix: "v"
           release_branches: main
 
+      - name: 🧐 调试新版本号
+        run: echo "Generated new tag: ${{ steps.tag_version.outputs.new_tag }}"
+
       - name: ✅ 输出新版本号
-        run: echo "VERSION=${{ steps.tag_version.outputs.new_tag }}" >> $GITHUB_ENV
+        run: |
+          if [[ -z "${{ steps.tag_version.outputs.new_tag }}" ]]; then
+            echo "❌ ERROR: new_tag is empty!"
+            exit 1
+          fi
+          echo "VERSION=${{ steps.tag_version.outputs.new_tag }}" >> $GITHUB_ENV
 
   build-and-test:
     name: 构建 & 测试
@@ -76,6 +84,14 @@ jobs:
 
       - name: 🏗 构建项目
         run: dotnet build --configuration Release --no-restore
+
+      - name: 🧐 检查 `VERSION`
+        run: |
+          if [[ -z "$VERSION" ]]; then
+            echo "❌ ERROR: VERSION is empty!"
+            exit 1
+          fi
+          echo "✅ Using Version: $VERSION"
 
       - name: 📦 生成 NuGet 包
         run: dotnet pack src/cicdGitactionTest/cicdGitactionTest.csproj --configuration Release --output ./packages /p:Version=${{ env.VERSION }}
