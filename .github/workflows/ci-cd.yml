@@ -32,7 +32,7 @@ jobs:
           release_branches: main
 
       - name: 🧐 调试新版本号
-        run: echo "Generated new tag: ${{ steps.tag_version.outputs.new_tag }}"
+        run: echo "Generated new tag:${{ steps.tag_version.outputs.new_tag }}"
 
       - name: ✅ 输出新版本号
         run: |
