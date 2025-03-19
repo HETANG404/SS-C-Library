@@ -55,5 +55,15 @@ jobs:
       - name: 📦 Pack NuGet Package
         run: dotnet pack src/cicdGitactionTest/cicdGitactionTest.csproj --configuration Release --output ./packages
 
+      - name: 🧐 Debug:Check NuGet Package Location
+        run: ls -R packages || echo "No NuGet package found!"
+
       - name: 🚀 Publish to NuGet
-        run: dotnet nuget push $(find ../src/cicdGitactionTest/bin/Debug/ -name "*.nupkg") -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
+        run: |
+          PACKAGE=$(find packages -name "*.nupkg" | head -n 1)
+          if [ -z "$PACKAGE" ]; then
+            echo "❌ No NuGet package found! Build might have failed."
+            exit 1
+          fi
+          echo "✅ Found NuGet package: $PACKAGE"
+          dotnet nuget push "$PACKAGE" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
