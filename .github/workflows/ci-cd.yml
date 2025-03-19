@@ -10,33 +10,33 @@ on:
 
 jobs:
   versioning:
-    name: 版本控制与打 Tag
+    name: Versioning & Tagging
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # 允许创建 Git 标签
+      contents: write  # Allow creating Git tags
     outputs:
       new_tag: ${{ steps.tag_version.outputs.new_tag }}
     steps:
-      - name: 🚀 检出代码
+      - name: 🚀 Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: 🔢 生成版本号并创建 Tag
+      - name: 🔢 Generate Version and Create Tag
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          default_bump: patch  # 自动递增 patch 版本，防止 tag 为空
+          default_bump: patch  # Automatically increment patch version to prevent empty tags
           tag_prefix: "v"
           release_branches: main
 
-      - name: 🧐 调试 GitHub Tag 生成情况
+      - name: 🧐 Debug GitHub Tag Generation
         run: |
           echo "Previous tag: ${{ steps.tag_version.outputs.previous_tag }}"
           echo "New tag: ${{ steps.tag_version.outputs.new_tag }}"
 
-      - name: ✅ 输出新版本号
+      - name: ✅ Set New Version
         run: |
           TAG="${{ steps.tag_version.outputs.new_tag }}"
           if [[ -z "$TAG" ]]; then
@@ -46,70 +46,69 @@ jobs:
           echo "VERSION=$TAG" >> $GITHUB_ENV
           echo "✅ Successfully set VERSION=$TAG"
 
-
   build-and-test:
-    name: 构建 & 测试
+    name: Build & Test
     needs: versioning
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🚀 检出代码
+      - name: 🚀 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 🏗 安装 .NET SDK
+      - name: 🏗 Setup .NET SDK
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '8.0.x'
 
-      - name: 📦 还原依赖
+      - name: 📦 Restore Dependencies
         run: dotnet restore
 
-      - name: 🏗 构建项目
+      - name: 🏗 Build Project
         run: dotnet build --configuration Release --no-restore
 
-      - name: ✅ 运行测试
+      - name: ✅ Run Tests
         run: dotnet test src/cicdGitactionTest.Tests/cicdGitactionTest.Tests.csproj --configuration Release --no-build --logger trx
 
   publish-nuget:
-    name: 发布 NuGet 包
+    name: Publish to NuGet
     needs: build-and-test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: 🚀 检出代码
+      - name: 🚀 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 🏗 安装 .NET SDK
+      - name: 🏗 Setup .NET SDK
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '8.0.x'
 
-      - name: 📦 还原依赖
+      - name: 📦 Restore Dependencies
         run: dotnet restore
 
-      - name: 🏗 构建项目
+      - name: 🏗 Build Project
         run: dotnet build --configuration Release --no-restore
 
-      - name: 🧐 检查 `VERSION`
+      - name: 🧐 Check VERSION
         run: |
-          if [[ -z "$VERSION" ]]; then
+          if [[ -z "${{ env.VERSION }}" ]]; then
             echo "❌ ERROR: VERSION is empty!"
             exit 1
           fi
-          echo "✅ Using Version: $VERSION"
+          echo "✅ Using Version: ${{ env.VERSION }}"
 
-      - name: 📦 生成 NuGet 包
+      - name: 📦 Package NuGet
         run: dotnet pack src/cicdGitactionTest/cicdGitactionTest.csproj --configuration Release --output ./packages /p:Version=${{ env.VERSION }}
 
-      - name: 🧐 检查 NuGet 包
-        run: ls -R packages || echo "❌ 未找到 NuGet 包！"
+      - name: 🧐 Verify NuGet Package
+        run: ls -R packages || echo "❌ No NuGet package found!"
 
-      - name: 🚀 发布 NuGet 包
+      - name: 🚀 Publish to NuGet
         run: |
           PACKAGE=$(find packages -name "*.nupkg" | head -n 1)
           if [ -z "$PACKAGE" ]; then
-            echo "❌ 未找到 NuGet 包！可能打包失败。"
+            echo "❌ No NuGet package found! Build might have failed."
             exit 1
           fi
-          echo "✅ 找到 NuGet 包: $PACKAGE"
+          echo "✅ Found NuGet package: $PACKAGE"
           dotnet nuget push "$PACKAGE" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
