@@ -3,92 +3,92 @@ name: Build, Test & Publish NuGet
 on:
   push:
     branches:
-      - main   # 仅在 push 到 main 分支时触发 NuGet 发布
+      - main
   pull_request:
     branches:
-      - main   # PR 时触发 CI 测试
+      - main
 
 jobs:
-  
   versioning:
-    name: Versioning & Tagging
+    name: 版本控制与打 Tag
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # 允许创建/推送 Git 标签
+      contents: write
+    outputs:
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}  # 让新版本号可以传递给后续任务
     steps:
-      - name: 🚀 Checkout Repository
+      - name: 🚀 检出代码
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 获取完整的 Git 历史
+          fetch-depth: 0
 
-      - name: 🔢 Determine Version
+      - name: 🔢 生成版本号并创建 Tag
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          default_bump: patch  # 默认提升 patch 版本号（可改为 major/minor/patch）
+          default_bump: false
+          tag_prefix: "v"
+          release_branches: main
 
-      - name: 🧐 Debug Version
-        run: echo "New version is ${{ steps.tag_version.outputs.new_tag }}"
+      - name: ✅ 输出新版本号
+        run: echo "VERSION=${{ steps.tag_version.outputs.new_tag }}" >> $GITHUB_ENV
 
-  
-  
   build-and-test:
-    name: Build & Test
+    name: 构建 & 测试
     needs: versioning
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🚀 Checkout Repository
+      - name: 🚀 检出代码
         uses: actions/checkout@v4
 
-      - name: 🏗 Setup .NET SDK
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '8.0.x'   # 使用 .NET 8
-
-      - name: 📦 Restore Dependencies
-        run: dotnet restore
-
-      - name: 🏗 Build Solution
-        run: dotnet build --configuration Release --no-restore
-
-      - name: ✅ Run Tests
-        run: dotnet test src/cicdGitactionTest.Tests/cicdGitactionTest.Tests.csproj --configuration Release --no-build --logger trx
-
-
-  publish-nuget:
-    name: Publish to NuGet
-    needs: build-and-test  # 依赖上一个 job，确保测试通过
-    if: github.ref == 'refs/heads/main'  # 仅在 main 分支触发
-    runs-on: ubuntu-latest
-    steps:
-      - name: 🚀 Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: 🏗 Setup .NET SDK
+      - name: 🏗 安装 .NET SDK
         uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '8.0.x'
 
-      - name: 📦 Restore Dependencies
+      - name: 📦 还原依赖
         run: dotnet restore
 
-      - name: 🏗 Build Solution
+      - name: 🏗 构建项目
         run: dotnet build --configuration Release --no-restore
 
-      - name: 📦 Pack NuGet Package
-        run: dotnet pack src/cicdGitactionTest/cicdGitactionTest.csproj --configuration Release --output ./packages /p:Version=${{ needs.versioning.outputs.new_tag }}
+      - name: ✅ 运行测试
+        run: dotnet test src/cicdGitactionTest.Tests/cicdGitactionTest.Tests.csproj --configuration Release --no-build --logger trx
 
-      - name: 🧐 Debug:Check NuGet Package Location
-        run: ls -R packages || echo "No NuGet package found!"
+  publish-nuget:
+    name: 发布 NuGet 包
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚀 检出代码
+        uses: actions/checkout@v4
 
-      - name: 🚀 Publish to NuGet
+      - name: 🏗 安装 .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: 📦 还原依赖
+        run: dotnet restore
+
+      - name: 🏗 构建项目
+        run: dotnet build --configuration Release --no-restore
+
+      - name: 📦 生成 NuGet 包
+        run: dotnet pack src/cicdGitactionTest/cicdGitactionTest.csproj --configuration Release --output ./packages /p:Version=${{ env.VERSION }}
+
+      - name: 🧐 检查 NuGet 包
+        run: ls -R packages || echo "❌ 未找到 NuGet 包！"
+
+      - name: 🚀 发布 NuGet 包
         run: |
           PACKAGE=$(find packages -name "*.nupkg" | head -n 1)
           if [ -z "$PACKAGE" ]; then
-            echo "❌ No NuGet package found! Build might have failed."
+            echo "❌ 未找到 NuGet 包！可能打包失败。"
             exit 1
           fi
-          echo "✅ Found NuGet package: $PACKAGE"
+          echo "✅ 找到 NuGet 包: $PACKAGE"
           dotnet nuget push "$PACKAGE" -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json
